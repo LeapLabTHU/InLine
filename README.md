@@ -2,7 +2,7 @@
 
 This repo contains the official PyTorch code and pre-trained models for **Injective Linear Attention (InLine)**.
 
-+ [Bridging the divide: Reconsidering softmax and linear attention](https://openreview.net/pdf?id=RSiGFzQapl)
++ [Bridging the divide: Reconsidering softmax and linear attention](https://arxiv.org/abs/2412.06590) [[中文讲解]](https://www.bilibili.com/video/BV1BAqCYnEag)
 
 
 

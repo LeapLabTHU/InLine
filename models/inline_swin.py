@@ -264,6 +264,9 @@ class InLineAttention(nn.Module):
 
         res_weight = self.residual(x.mean(dim=1).unsqueeze(dim=-1)).reshape(b * c, 1, 3, 3)
 
+        # The self.scale / n = head_dim ** -0.5 / n is a scale factor used in InLine attention.
+        # This factor can be equivalently achieved by scaling \phi(Q) = \phi(Q) * self.scale / n
+        # Therefore, we omit it in eq. 5 of the paper for simplicity.
         kv = (k.transpose(-2, -1) * (self.scale / n) ** 0.5) @ (v * (self.scale / n) ** 0.5)
         x = q @ kv + (1 - q @ k.mean(dim=2, keepdim=True).transpose(-2, -1) * self.scale) * v.mean(dim=2, keepdim=True)
 

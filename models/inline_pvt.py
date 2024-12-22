@@ -83,15 +83,12 @@ class Attention(nn.Module):
 
 
 class InLineAttention(nn.Module):
-    def __init__(self, dim, num_patches, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0.,
+    def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0.,
                  sr_ratio=1, **kwargs):
         super().__init__()
         assert dim % num_heads == 0, f"dim {dim} should be divided by num_heads {num_heads}."
 
         self.dim = dim
-        self.num_patches = num_patches
-        window_size = (int(num_patches ** 0.5), int(num_patches ** 0.5))
-        self.window_size = window_size
         self.num_heads = num_heads
         head_dim = dim // num_heads
         self.scale = head_dim ** -0.5
@@ -134,6 +131,9 @@ class InLineAttention(nn.Module):
 
         res_weight = self.residual(x.mean(dim=1).unsqueeze(dim=-1)).reshape(b * c, 1, 3, 3)
 
+        # The self.scale / n = head_dim ** -0.5 / n is a scale factor used in InLine attention.
+        # This factor can be equivalently achieved by scaling \phi(Q) = \phi(Q) * self.scale / n
+        # Therefore, we omit it in eq. 5 of the paper for simplicity.
         kv = (k.transpose(-2, -1) * (self.scale / n) ** 0.5) @ (v * (self.scale / n) ** 0.5)
         x = q @ kv + (1 - q @ k.mean(dim=2, keepdim=True).transpose(-2, -1) * self.scale) * v.mean(dim=2, keepdim=True)
 
@@ -149,14 +149,14 @@ class InLineAttention(nn.Module):
 
 class Block(nn.Module):
 
-    def __init__(self, dim, num_patches, num_heads, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop=0., attn_drop=0.,
+    def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop=0., attn_drop=0.,
                  drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm, sr_ratio=1, attn_type='I'):
         super().__init__()
         self.norm1 = norm_layer(dim)
         assert attn_type in ['I', 'S']
         attn = InLineAttention if attn_type == 'I' else Attention
         self.attn = attn(
-            dim, num_patches,
+            dim,
             num_heads=num_heads, qkv_bias=qkv_bias, qk_scale=qk_scale,
             attn_drop=attn_drop, proj_drop=drop, sr_ratio=sr_ratio)
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
@@ -225,7 +225,7 @@ class PyramidVisionTransformer(nn.Module):
             pos_drop = nn.Dropout(p=drop_rate)
 
             block = nn.ModuleList([Block(
-                dim=embed_dims[i], num_patches=num_patches, num_heads=num_heads[i], mlp_ratio=mlp_ratios[i], qkv_bias=qkv_bias,
+                dim=embed_dims[i], num_heads=num_heads[i], mlp_ratio=mlp_ratios[i], qkv_bias=qkv_bias,
                 qk_scale=qk_scale, drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[cur + j],
                 norm_layer=norm_layer, sr_ratio=sr_ratios[i] if attn_type[i] == 'S' else int(la_sr_ratios[i]),
                 attn_type=attn_type[i])
